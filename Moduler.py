@@ -1,11 +1,12 @@
 #!/usr/bin/python
-'''
-Graph based Modularity.
-This script will evaluate the data for modules. Such modules are defined as correlating modules, so the clustering 
-is performed in the correlation space. It has an optional statistical significance test for the clustering and power
-analysis of the result.
+"""
+Moduler Copyright (C) 2012  Jose Sergio Hleap, Kyle Nguyen, Alex Safatli and Christian Blouin
 
-ModulerV2 Copyright (C) 2012  Jose Sergio Hleap, Kyle Nguyen, Alex Safatli and Christian Blouin
+Graph based Modularity.
+This script will evaluate the data for modules. Such modules are defined as correlating variables, so the clustering 
+is performed in the correlation space. It has an optional statistical significance test for the clustering and power
+analysis of the result, as well as a bootstrap analysis. See options for more details.
+
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -57,8 +58,8 @@ Requirements:
 4) set python path to:
    a) contactmapper.py (if using contacts)
 
-
-'''
+E-mail: jshleap@squalus.org
+"""
 #importing bit####################################################################################################
 import sys, pickle, os, datetime, decimal, optparse
 from glob import glob
