@@ -46,3 +46,56 @@ featuresel.R:
           4) a boolean (TRUE/FALSE) if the feature selection should be made on 
              the raw coordinates (FALSE) or in the form difference matrix
             
+FoldX_runner.py:
+---------------
+  This script will run FoldX software for repair and mutations to alanine.
+  It will output a pickled dictionary of energies and the mutated files.
+  Check FoldX manual for more info.
+  Requires:
+  1) FoldX, available at http://foldx.crg.es/
+  2) Numpy
+  
+
+protGM.py:
+---------
+  Application of some Geometric morphometrics on protein structures. That applications include 
+  abstraction of structures as shapes, PCoA, CVA, form differnce, MANOVA, outlier landmark removal
+  among others.
+  
+  It uses some R functions taken and modified from Morphometrics with R(Series: Use R!) of Julien Claude.
+  This program is free software: you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version.
+  Requires:
+  1) rpy2, available at http://rpy.sourceforge.net/rpy2.html
+  2) Utils folder, available from Alex Safatli at https://github.com/AlexSafatli/LabBlouinTools
+  3) Biophyton
+  4) Numpy
+  5) R packages ape, vegan, shapes, outliers, and corpcor
+
+
+ShapeSim.py:
+-----------
+  Simulates shapes using cholesky decomposition to generate correlated variables (coordinates) with a shape constraint.
+  Requires an initial shape in GM format, and a partition file of the form:
+  
+    Partition
+    Landmarks: [list of the landmark number in the order of entries in the GM file]
+    corr: [the ammount of correlation among partition 1]
+    
+    Partition
+    Landmarks: [list of the landmark number in the order of entries in the GM file]
+    corr: [the ammount of correlation among partition 2]
+    .
+    .
+    .
+    Partition
+    Landmarks: [list of the landmark number in the order of entries in the GM file]
+    corr: [the ammount of correlation among partition n]
+  
+  Requires:
+  1) rpy2, available at http://rpy.sourceforge.net/rpy2.html
+  2) Matplotlib, available at http://matplotlib.org/
+  3) R packages corpcor and shapes
+
