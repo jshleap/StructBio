@@ -41,11 +41,11 @@ from Bio import Entrez
 from Bio.Blast import NCBIXML
 from Bio.Blast.NCBIWWW import qblast
 from Bio.Blast.Applications import NcbiblastpCommandline
-from rpy2.robjects.conversion import ri2py, py2ri
+from rpy2.robjects.conversion import py2ri
 from numpy import mean, median, std, sqrt
 #from PDBnet import PDBstructure
-from utils.PDBnet import PDBstructure
-from utils.SeqMask import InferSingleLettterCode
+from labblouin.PDBnet import PDBstructure
+from labblouin.SeqMask import InferSingleLettterCode
 from collections import Counter
 # #################################################################################################
 # Some R functions#################################################################################
@@ -86,9 +86,9 @@ def R_functions():
 	## Convert 'shapes'-readable array into GMfile 
 	## A is an array Shapes-type
 	## d is the dimensions
-	r('A2GM<- function(A,d){m<-matrix(NA,dim(A)[3],dim(A)[1]*d) ;'\
+	r('A2GM<- function(A,d,rownames=NULL){m<-matrix(NA,dim(A)[3],dim(A)[1]*d) ;'\
 	  ' for (i in 1:dim(A)[3]){ for (j in 1:d){ m[i,seq(j,dim(m)[2],d)]<-A[,j,i]}};'\
-	  'as.data.frame(m)}')
+	  'row.names(m)<-rownames;as.data.frame(m)}')
 	##################################################################################################
 	## a function to process the CVA
 	r('CVA <- function(A,cls,prefix){'\
@@ -528,12 +528,9 @@ class GM:
 		if multiple:
 			oldchain=chain
 			chain=cha
-		for re in self.currentPDB.chainsOrder[chain]:
-			res = self.currentPDB.chains[chain][re]
-			if multiple:
-				chainmap=chains[oldchain]
-			else:
-				chainmap = chains[chain]
+		for res in self.currentPDB.chains[chain]:
+			if multiple: chainmap=chains[oldchain]
+			else: chainmap = chains[chain]
 			index=int(res.index)
 			if not index in chainmap:
 				newchain = 'X'
@@ -541,10 +538,7 @@ class GM:
 			else:
 				newchain = chain
 				temp = lis[chainmap.index(index)]
-			if not newchain in newPDB.chains:
-				newPDB.chains[newchain]={}
-				newPDB.orderofchains.append(newchain)
-				newPDB.chainsOrder[newchain]=[]
+			if not newchain in newPDB.chains: newPDB.NewChain(newchain)
 			newPDB.AddResidueToChain(newchain,res)
 			for atom in newPDB.chains[newchain][res.index].atoms:
 				newPDB.chains[newchain][res.index].atoms[atom].tempFactor=temp

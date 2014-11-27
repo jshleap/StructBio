@@ -32,7 +32,7 @@ Requirements:
    d) matplotlib module
    ######################################
    #To install python modules in UBUNTU:#
-   #sudo apt-get python-<module>        #
+   #sudo apt-get install python-<module>#
    ######################################
 
 2) The igraph Python extension module:
@@ -42,12 +42,15 @@ Requirements:
    #follow their instructions           #
    ######################################
 
-3) The GNU R package:
+3) The GNU R package v. 3 or above:
    a) Library DAAG 
    b) Library pwr
    c) Library corpcor
-   d) Library FactoMineR
-   e) Library gplots
+   d) Library FactoMineR (requires gfortran)
+   e) Library gplots (Some systems do not have the libraries required so
+      sudo apt-get install liblapack-dev before in the unix shell)
+   f) Library fields
+   g) Library ggplot2
    ######################################
    #To install The R packages in UBUNTU:#
    #Get into R by typing "R" in your cmd#
@@ -56,28 +59,29 @@ Requirements:
    ######################################   
 
 4) set python path to:
-   a) contactmapper.py (if using contacts)
+   a) contactList folder containing contactmapper.py and the __init__ function
+   b) modularity folder containing MapModules.py and the __init__ function
 
 E-mail: jshleap@squalus.org
 """
 #importing bit####################################################################################################
 import sys, pickle, os, datetime, decimal, optparse
 from glob import glob
-from numpy import mean
 import matplotlib.pyplot as plt
 import matplotlib.mlab as mlab
 from igraph import Graph, VertexClustering
 from rpy2.robjects import r
-from numpy import cov, matrix, corrcoef, array, zeros, mean, std, sqrt, var, savetxt, log
+from numpy import cov, matrix, corrcoef, array, zeros, mean, std,sqrt, var, savetxt, log
 from scipy.stats import pearsonr, kendalltau, spearmanr, norm
 from copy import deepcopy
 from collections import Counter
 from contactList.contactmapper import Contacts
+from modularity.MapModules import main as mapmodules
 from random import randint
 from shutil import copyfile
 from copy import deepcopy
 from subprocess import Popen,call,PIPE
-#from subprocess import call
+
 #import apropriate R libraries####################################
 r('library(DAAG)')
 r('library(stats)')
@@ -353,7 +357,6 @@ def agglomerare_mean(matrices, dim, absolutecov):
         temp = []
         for j in range(0, matrices[0].shape[0]):
             sm = 0.0
-
             # Sum over all dimensions
             for m in matrices:
                 d = m[i][j]
@@ -388,17 +391,20 @@ def Build_igraph(lms, options, gfilter):
                     g.add_edge(i,j)
                     g.es[len(g.es)-1]['wts'] = int(lms[i][j]*100000)
                     #print i,j, int(lms[i][j]*100000)
+            '''else:
+                g.add_edge(i,j)
+                g.es[len(g.es)-1]['wts'] = 0'''
     return g
 
 
 ###############################################################################################
 
-def Graph_Components(g, lms):
+def Graph_Components(g, lms, method = 'fastgreedy'):
     '''
     Clustering by components comstGreed, using igraph library
     Returns the memberships by cluster and a lis of Eigenvector centrality per cluster
     '''
-    memgreed = [None]*len(lms)
+    memgreed = [0]*len(lms)
     index = 0
     comp = g.components()
     #if len(comp) > 1:
@@ -412,7 +418,8 @@ def Graph_Components(g, lms):
         for cp in range(len(comp)):
             cpn = comp.subgraph(cp)
             if len(cpn.vs) > 1:
-                mem = cpn.community_fastgreedy(cpn.es['wts']).as_clustering()
+                try: mem = getattr(cpn,'community_'+method)(cpn.es['wts']).as_clustering()#cpn.community_fastgreedy(cpn.es['wts']).as_clustering()
+                except: mem = getattr(cpn,'community_'+method)(cpn.es['wts'])
                 #modmap = {}
                 for i in mem:
                     for j in i:
@@ -592,6 +599,7 @@ def print_memvec(m, singles):
 
 ###############################################################################################
 def lms2Rlms(prefix, lms):
+    '''Transformed the agglomerated correlation matrix to a file to be read by R'''
     row , col = len(lms), len(lms[0])
     r('lms <- matrix(0.0,nrow=%d,ncol=%d)'%(row,col))
     for i in range(row):
@@ -599,8 +607,18 @@ def lms2Rlms(prefix, lms):
             r('lms[%d,%d]<- %f'%(i+1,j+1,float(lms[i][j])))
             #print 'lms[%d,%d]<- %f'%(i+1,j+1,float(A[i][j]))
     r('write.table(lms,file="%s.lms",sep=";",row.names=FALSE,col.names=FALSE)'%(prefix))
+    
+def Filelms2py(prefix):
+    '''Given the lms matrix written to file, set it back in python form'''
+    fn = prefix+'.lms'
+    mat=[]
+    with open(fn) as F:
+        for line in F:
+            mat.append([float(x) for x in line.split(';')])
+    return mat
 
 def get_cluster_indices(m):
+    """Return a dictionary with cluster indices"""
     M = m.split()
     s = set(M)
     d={}
@@ -614,6 +632,7 @@ def get_cluster_indices(m):
     return d
 
 def filter_singletons(clusterdict,m):
+    '''Return a dictionary with the indices of unconnected nodes'''
     singles={}
     C = deepcopy(clusterdict)
     memb = deepcopy(m.strip())
@@ -688,7 +707,7 @@ def pairwise_lms_permt(D,perm,A,options):
     return keys, pvals, cl, neighbours
 
 def lms_permt(m,perm,A,options):
-    print 'WARNING: USING LMS_PERMT... this is in BETA'
+    '''Performs the permutation test on the lms matrix'''
     D = get_cluster_indices(m)
     singles, m = filter_singletons(D,m)
     if len(D) == 0 and not itpermt:
@@ -1046,7 +1065,7 @@ def write_permt(prefix, FDR, cl, scl, newm,count=''):
     return newvec
 ###############################################################################################
 
-def permt(prefix, data, matrices, sample_size, m, perm, options, count=''):
+def permt(prefix, m, perm, options, count=''):
     '''
     test the significance of the clustering using the intra vs intercorrelation. The test is
     a permutational t-test.
@@ -1101,7 +1120,7 @@ def permt(prefix, data, matrices, sample_size, m, perm, options, count=''):
 
 
 ###############################################################################################
-def iterative_permt(prefix, data, matrices, m, sample_size,A, options):
+def iterative_permt(prefix, data, m, sample_size,A, options):
     '''
     perform a permutation test iteratively, until a stable membership vector is reached
     '''
@@ -1112,8 +1131,10 @@ def iterative_permt(prefix, data, matrices, m, sample_size,A, options):
         count+=1
         it= 'Performing iteration number %d'%(count)
         print '\n\n%s\n%s\n%s\n'%('*'*(len(it)),it,'*'*(len(it)))
-        scl, newm, newvec, FDR = lms_permt(curr_m,options.itperm,A,options)
-        '''scl, newm, newvec, FDR = permt(prefix, data, matrices, sample_size, curr_m, options.itperm, options, count=count)'''
+        
+        if options.additive: scl, newm, newvec, FDR = lms_permt(curr_m,options.itperm,A,options)
+        else: scl, newm, newvec, FDR = permt(prefix,curr_m,options.itperm,options)
+        
         memvec.append(newm)
         if count >= 2:
             old = VectorToEdgeList(memvec[-2])
@@ -1166,27 +1187,6 @@ def GetCoordinates(dim,index):
         M = (matrix(data[d])).T
         coor_i = mean(M[index])
         coords.append(coor_i)
-
-    '''if dim == 2:
-		xmatrix=(matrix(data[0])).T
-		ymatrix=(matrix(data[1])).T
-		coorX=mean(xmatrix[index])
-		coorY=mean(ymatrix[index])
-		coords.append(coorX)
-		coords.append(coorY)
-	elif dim == 3:
-		xmatrix=(matrix(data[0])).T
-		ymatrix=(matrix(data[1])).T
-		zmatrix=(matrix(data[2])).T
-		coorX=mean(xmatrix[index])
-		coorY=mean(ymatrix[index])
-		coorZ=mean(ymatrix[index])
-		coords.append(coorX)
-		coords.append(coorY)
-		coords.append(coorZ)
-	else:
-		print 'Are you sure your data is in cartesian coordinates?'
-'''
     return coords
 
 
@@ -1286,77 +1286,7 @@ def Power_r(corr, confval, power):
 
 
 ###############################################################################################
-'''
-def Clus_Power(prefix, data, confval, power, sample_size, dim, save_r=False):
 
-	#Make a power analysis of the clusters by igraph and outputs a table with the proportion 
-	#of elements above the n required according to significance, power and correlation
-
-	# alternative dictionary
-	proportion={}
-	# Open the output file
-	ouf=open('%s_Power_analysis.asc'%(prefix),'w')
-	ouf.write('#################################################################\n')
-	ouf.write('#Power analysis and description of the intracluster correlation:#\n')
-	ouf.write('#################################################################\n\n')
-	ouf.write('1 - Significance(alpha)= %f;\t1 - Power(beta):%f\n'%(1-confval,1-power))
-	ouf.write('Sample Size : %d\n\n'%(sample_size))
-	# Create a list of files with individual clusters by moodularity.py
-	cls = []
-	m,mem = clus2csv(prefix,data, sample_size)
-	allfiles = os.listdir(os.getcwd())
-	for name in allfiles:
-		if not name.endswith('.csv'):
-			continue
-		cls.append(name)
-
-	for clusters in cls:
-		# get name of the cluster
-		clname = clusters[clusters.find('.')+1:clusters.find('.csv')]
-		ouf.write('Cluster %s:\n'%(clname))
-		ouf.write('%s'%('*'*len(clusters))+'\n')
-		# Read the csv files split dimension and turn them into R matrices
-		D, ss = Read_GM(clusters[:-4], dim, f='csv')
-		mnames = py2r_dim(D)
-		b=''
-		# estimate the correlation for each dimension
-		for mn in mnames:
-			r('c%s<-cor(%s)'%(mn,mn))
-			# get the lowertriangle of the correlation
-			r('c%s<-c%s[lower.tri(c%s)]'%(mn,mn,mn))
-			b += 'c%s'%(mn)+','
-		# Bind the dimensions
-		b = b[:-1]
-		c = r('c <- cbind(%s)'%(b))
-		# estimate quantiles
-		r('q<-quantile(c)')
-		q = r('q')		
-
-		if save_r: # Save some objects in an R file for R manupulation (outside python)
-			r('save(file="power",c,q,%s)'%(b))
-
-		# estimate the proportion of variables with enough power
-		enough=0.0
-		for x in c:
-			nsam = Power_r(x, confval, power)
-			#print x, nsam[0]
-			if int(round(nsam[0])) <= sample_size:
-				enough += 1.0
-		prop = enough/len(c)
-		# write to file
-		ouf.write(' 0% \t\t 25% \t\t 50% \t\t 75% \t\t 100% \t\t PVP \n')
-		resline = ' %f \t %f \t %f \t %f \t %f \t %f \n\n'%(round(q[0],3),round(q[1],3),round(q[2],3),round(q[3],3),round(q[4],3),round(prop,3))
-		ouf.write(resline)
-		proportion[clname]=prop
-	ouf.write('_'*len(resline)+'\n')
-	ouf.write('Percentages are the quantiles of the lower triangle of the correlation matrix\n')
-	ouf.write('PVP: Proportion of variables with enough statistical power \n')
-	for f in glob('*.csv'):
-		if not 'summary' in f:
-			os.remove(f)
-
-	return proportion
-'''
 def Clus_Power(prefix, data, confval, power, sample_size, dim, m, save_r=False):
     '''
     Make a power analysis of the clusters by igraph and outputs a table with the proportion 
@@ -1919,7 +1849,8 @@ def Master_of_ceremony(options):
     print('A python script to explore modularity on coordinates data\n\n')
     l = ''
     # Print the chosen parameters and write it to a file #########################
-    l+='Chosen parameters:\nPrefix=%s\nMultiple PDBs = %s\n'%(args[0],options.multiple)
+    l+='Chosen parameters:\nPrefix=%s\nMultiple PDBs = %s, PATH= %s\n'%(args[0], True if options.multiple else False,
+                                                                 options.multiple)
     l+='Test of significance for correlation = %s\n'%(options.method)
     l+='Power analysis = %s\n'%(options.power)
     l+='RV test = %s\nAglomerate dimensions as Euclidean distance = %s\n'%(options.rv,options.additive)
@@ -1960,15 +1891,9 @@ def landmarks4morph(prefix,dim):
         for la in range(lndm):
             nl.write(str(la)+'\t'+str(la+1)+'\tmorph\n')
     nl.close()
-
-def main(prefix, options):
-    ''' execute the code '''
-    # Load Data ############################################################
-    data, sample_size = Read_GM(prefix, options.dim)#, options.dist)
-
-    # Load Contacts ########################################################
-    gfilter = Load_Contacts(prefix,options)
-
+    
+def Compute_correlations(prefix,options,data,sample_size):
+    thr = 0
     # Create a correlation matrix testing for significance #################
     if options.method:
         if options.absolutecov:
@@ -1998,6 +1923,21 @@ def main(prefix, options):
             write_singleMatrix(prefix,lms)
     else:
         lms = agglomerare_mean(matrices, options.dim, options.absolutecov)
+    
+    return matrices, thr, lms
+            
+            
+def main(prefix, options):
+    ''' execute the code '''
+    # Load Data ############################################################
+    data, sample_size = Read_GM(prefix, options.dim)#, options.dist)
+
+    # Load Contacts ########################################################
+    gfilter = Load_Contacts(prefix,options)
+    
+    # Check if there is a previous run and loads the matrix without computing
+    if os.path.isfile(prefix+'.lms') and options.additive: lms = Filelms2py(prefix)
+    else: matrices, thr, lms = Compute_correlations(prefix,options,data,sample_size)
 
     # get Edge assignment threshold and print it to screen #################
     if options.threshold == 'Auto':
@@ -2008,20 +1948,20 @@ def main(prefix, options):
         f.write(t)
         f.close()		
         print t
-    ''' if fudge set threshold #########################################################
-	if fudge:#deprecated!! is not an option in the parser... migth be usefull down the road
-		print 'fudge =%s'%(fudge)
-		threshold = Z_fisher(options.confval, sample_size) + F_transf(threshold)
-		f= 'Edge assignment threshold = %s'%(str(threshold))
-		print f
-		#ou.write('\n'+f)'''
-
+	
     # Build igraph ###################################################################
-    g = Build_igraph(lms, options, gfilter)
+    if not os.path.isfile(prefix + '.igraph.pickl'):
+        g = Build_igraph(lms, options, gfilter)
+        o = open(prefix + '.igraph.pickl','w')
+        pickle.dump(g,o)
+        o.close()
+    else: g = pickle.load(open(prefix + '.igraph.pickl'))
+    
     if options.contacts:
         A = g.get_adjacency() # get the adjacency matrix to filter permt
     else:
         A=[]
+        
     g.write_dot('graph.dot')
     # Clustering by components comstGreed ############################################
     memgreed, mem = Graph_Components(g,lms)
@@ -2060,15 +2000,12 @@ def main(prefix, options):
     # significance test of clustering: Outputs a new graphcluster
     if options.perm != 0:
         scl, newm, newvec, FDR = lms_permt(m,options.perm,A,options)
-        '''
-		scl, newm, newvec, FDR = permt(prefix, data, matrices, sample_size, m, options.perm, options)
-		# Write the DOT graph
-		Dot_graph(prefix, scl, newm)'''
 
     elif options.itperm != 0:
-        scl, newm, newvec, FDR = iterative_permt(prefix, data, matrices, m, sample_size, A, options)
+        scl, newm, newvec, FDR = iterative_permt(prefix, data, m, sample_size, A, options)
         # Write the DOT graph
-        Dot_graph(prefix, scl, newm)
+        if options.Dotgraph:
+            Dot_graph(prefix, scl, newm)
 
     else:
         newm = m # bootrap work around
@@ -2085,6 +2022,21 @@ def main(prefix, options):
     if options.rv:
         RVs = multiple_RVs(prefix,options.dim)
         write_RVfile(prefix,RVs)
+    # Map modules and centralities #########################################################
+    if options.mapmodules:
+        multiple = False
+        if not options.multiple:
+            chain = options.mapmodules.split(',')[1]
+            pdb = options.mapmodules.split(',')[0]
+        else:
+            multiple=options.multiple
+            pdb = prefix
+            chain=os.path.split(options.mapmodules.split(',')[0])[-1].strip('.pdb')
+            
+        if options.overall:
+            mapmodules(prefix,chain,multiple=multiple,centrality=True)
+        else:
+            mapmodules(prefix,chain,multiple=multiple)
 
     return newm,data
 
@@ -2428,7 +2380,7 @@ def bipartition_agreement(prefix, vectors, m):
 
 def if_bootfile(prefix, options):
     '''
-    if another bootrap intance has been called and crashed, this function will finished
+    if another bootsrap intance has been called and crashed, this function will finished
     the remaining and / or compute the agreement
     '''
     vectors = []
@@ -2535,7 +2487,7 @@ def LDAMerge(prefix,m,options):
         os.remove('merges.txt')
     tomerge=[]
     scriptpath = '/'.join(os.path.abspath(__file__).split('/')[:-1])
-    R = Popen('nohup Rscript %s/%s %s %d'%(scriptpath,'ldaellipse4mod.R', prefix+'.gm',options.dim),
+    R = Popen('nohup Rscript %s/%s %s %d > %s.nohup'%(scriptpath,'ldaellipse4mod.R', prefix+'.gm',options.dim,prefix),
               shell=True)#,stderr=PIPE,stdout=PIPE)
 
     #R = Popen('R CMD BATCH "--args %s %d" %s/%s'%(prefix+'.gm',options.dim,scriptpath,'ldaellipe4mod.R'),
@@ -2575,7 +2527,7 @@ if __name__ == "__main__":
     opts.add_option('-a','--mean', dest='additive', action="store_false", default=True,
                     help='Use the mean of the correlation in each dimension instead of'\
                     'the euclidean distance to aglomerate the dimensions. The default '\
-                    'behaviour is additconfvalive.')
+                    'behaviour is additive.')
     opts.add_option('-t', '--threshold', dest='threshold', action='store',# type=float, 
                     default=0.0, help= 'Set the threshold for edge assingment to the '\
                     'value provided. Otherwise is set to 0. An extra option is Auto '\
@@ -2588,21 +2540,21 @@ if __name__ == "__main__":
                     'significance of the correlation by the method provided(pearson, '\
                     'spearman, kendall or fisher). The latter is the fisher transform'\
                     'ation of the pearson correlation. If no test needed False should'\
-                    ' be providedls.')
+                    ' be provided.')
     opts.add_option('-i', '--confidencelevel', dest='confval', action='store', type='float',
                     default=0.95, help='Define the confidence level (1-alpha) for the'\
-                    ' correlation test')
+                    ' correlation test. Default: 0.95.')
     opts.add_option('-b','--histogram', dest='histocorr', action="store_true", default=False,
-                    help='Draw an histogram of the correlation matrix.')
+                    help='Draw an histogram of the correlation matrix. Default: False')
     opts.add_option('-d','--dimensions', dest='dim',action='store', type='int', default=3,
-                    help='Set the dimensions of the shape.')
+                    help='Set the dimensions of the shape. Default: 3.')
     opts.add_option('-c','--contact',dest='contacts', action="store_true", default=False,
-                    help='Use the all-atom contact matrix when assigning edges')
+                    help='Use the all-atom contact matrix when assigning edges. Default: False.')
     opts.add_option('-u','--absolute',dest='absolutecov',action="store_true",default=False,
-                    help= 'Use absolute values of the correlation matrix')
+                    help= 'Use absolute values of the correlation matrix. Default: False.')
     opts.add_option('-e', '--permtest',dest='perm', action='store', type='int',default=0,
                     help='Test the significance of clustering with N permutations,'\
-                    ' the default behaviour (0) means no permutation test')
+                    ' the default behaviour (0) means no permutation test.')
     opts.add_option('-n','--itpermtest',dest='itperm', action='store', type='int',default=0,
                     help= 'Iterative (until convergence) test the significance of'\
                     ' clustering with N permutations. As with the previous option'\
@@ -2614,12 +2566,17 @@ if __name__ == "__main__":
     opts.add_option('-r','--RV',dest='rv',action="store_false",default=True,
                     help='Do not Write the the Excouffier RV for the modules inferred.'\
                     ' The p-values will be given using the Pearson type III approximation.')
-    opts.add_option('-g','--multiplepdbs',dest='multiple',action="store_true",default=False,
+    opts.add_option('-g','--multiplepdbs',dest='multiple',action="store",default=False,
                     help= 'Use this flag if you have more than 50 structures and you align '\
-                    'them using pairwise2multiple method')
-    opts.add_option('-f','--fullcentrality',dest='overall',action="store_true",default=False,
+                    'them using ABeRMuSA method. You need to provide the path to the multiple pdbs.'\
+                    'Default:False, treat as a single alingnment pdb.')
+    opts.add_option('-f','--fullcentrality',dest='overall',action="store",default=False,
                     help='Use this if you want to calculate the centralities on the '\
-                    'full graph, as opposed as by modules ( Default behaviour ).')
+                    'full graph, as opposed as by modules ( Default behaviour ). Available'\
+                    'centralities to map (if passed with mapmodules option): Eigenvector '\
+                    'centrality (evcen), betweenness centrality (btc), closeness '\
+                    'centrality (clc), and/or degree. A comma separated text should be'\
+                    ' passed.')
     opts.add_option('-M','--morphological',dest='morph',action="store_true",default=False,
                     help='Use this if you want to estimate the modularity to morphological'\
                     ' data.')
@@ -2629,6 +2586,13 @@ if __name__ == "__main__":
                     help='Use LDA to premerge the community detection clusters')
     opts.add_option('-G','--graph',dest='graph',action="store_true",default=False,
                     help='Plot the graph colored by modules')
+    opts.add_option('-D','--Dotgraph',dest='Dotgraph',action="store_true",default=False,
+                        help='Plot the Dot graph')
+    opts.add_option('-C','--mapmodules',dest='mapmodules',action="store",default=False,
+                        help='Map the Modules in the PDB provided. If used in conjuction'\
+                        'with fullcentrality, it will map two centralities passed to the'\
+                        '-f option. The PDB and chain in which to map, have to be provided'\
+                        'comma separated.')  
     options, args = opts.parse_args()
 
     # some workaround with the CL ####################################################

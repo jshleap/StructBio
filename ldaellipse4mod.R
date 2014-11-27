@@ -29,7 +29,6 @@
 #function for overlapping lines. 
 # Author: Jose Sergio Hleap; jshleap@dal.ca
 
-
 # Libraries ---------------------------------------------------------------
 require(MASS)
 require(ellipse)

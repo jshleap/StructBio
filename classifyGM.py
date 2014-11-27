@@ -29,12 +29,10 @@ Requirements:
 3) svmutil module
 
 """
-import svmutil, optparse
-from utils import svm
 from subprocess import Popen
 from os.path import isfile
 #from shutil import copyfileobj
-from utils.PDBnet import PDBstructure
+from labblouin.PDBnet import PDBstructure
 import numpy as np
 from glob import glob as G
 
@@ -118,14 +116,17 @@ def readLandmarks(prefix):
     land={}
     l = open(prefix+'.landmarks').read().split('>')
     for e in l:
-        bl = e.split('\n')
-        land[bl[0]]=[]
-        for i in bl[1:]:
-            if i == '':
-                continue
-            else:
-                bline= i.split()
-                land[bl[0]].append(bline[1])
+        if e == '':
+            continue
+        else:
+            bl = e.split('\n')
+            land[bl[0]]=[]
+            for i in bl[1:]:
+                if i == '':
+                    continue
+                else:
+                    bline= i.split()
+                    land[bl[0]].append(bline[1])
     return land
     
 def setFilesLabels(prefix, arg,options):
@@ -175,13 +176,16 @@ def featSel_n_useSeq(options,prefix,args):
             f.write(line+'\n')
         f.close()
         options.predict = fname
-    if options.featureselect and not options.usesequence and options.predict:
+    if options.featureselect and not options.usesequence:
         rs = Popen('Rscript ./featuresel.R %s.gm %s.cls 3 FALSE %s'%(prefix,prefix,options.predict),shell=True)
         rs.wait()
+        if options.corr:
+            rs1=Popen('Rscript ./GM2MDS.R %s.gm %s.cls %s'%(prefix,prefix,options.predict),shell=True)
+            rs1.wait()        
         options.predict = options.predict[:-2]+'sv.gm'
         for i in range(0,len(args[1:]),2):
             args[i+1] = args[i+1][:-2]+'sv.gm'
-    if options.featureselect and options.usesequence and options.predict:
+    if options.featureselect and options.usesequence:
         files, data, labels, labdict = setFilesLabels(prefix,args[1:],options)
         nfile = open(prefix+'.seq.gm','w')
         #prefix = prefix+'.seq'
@@ -190,6 +194,9 @@ def featSel_n_useSeq(options,prefix,args):
         nfile.close()
         rs = Popen('Rscript ./featuresel.R %s.seq.gm %s.cls 3 FALSE %s'%(prefix,prefix,options.predict),shell=True)
         rs.wait()
+        if options.corr:
+            rs1=Popen('Rscript ./GM2MDS.R %s.seq.gm %s.cls %s'%(prefix,prefix,options.predict),shell=True)
+            rs1.wait()
         options.predict = options.predict[:-2]+'sv.gm'
         for i in range(0,len(args[1:]),2):
             if not 'sv' in args[i+1]:
@@ -247,13 +254,15 @@ def main(options,args):
         print fsline
 
 if __name__ == '__main__':
+    import svmutil, optparse
+    from labblouin import svm
     opts = optparse.OptionParser(usage='%prog [options] prefix GMfile1 label1 [GMfilename2 label2]...\n'\
                                  ' The prefix will be use to save and load the model, which will be'\
                                  ' <prefix>.svm. It will be also used to load the gm file and the cls'\
                                  ' file if feature selection is selected, as well as the landmarks file'\
                                  ' if usesequence is selected. The Rscript featuresel.R should be in the'\
                                  ' folder.')
-    opts.add_option('--predict','-p', action = "store", default=None,
+    opts.add_option('--predict','-p', action = "store", default='',
                     help="Use an existing trained model to test a file for predictions. With"\
                     " this flag you have to provide the name of a test file in gm format (semi"\
                     "colon-delimited csv file') of the aligned structures (aligned with the "\
@@ -265,7 +274,10 @@ if __name__ == '__main__':
                     "the path where the pdbs are to be found. Default: No ")  
     opts.add_option('--c_val','-c', action = "store", default=None,
                         help="Provide a known optimum c value for the svm. This avoid the optimization step"\
-                        " Default: No (Optimize) ")       
+                        " Default: No (Optimize) ")
+    opts.add_option('--corr','-C', action = "store", default='',
+                            help="Wheather to use or not correlation of the samples giving the variables"\
+                            " Default: No (Raw, option: T) ")    
     options, arg = opts.parse_args()
 
     main(options,arg)

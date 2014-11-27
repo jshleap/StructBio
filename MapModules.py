@@ -106,7 +106,7 @@ def map_consistency(prefix):
     outf.close()
     return membership
 
-def rewrite_PDB(chain,membership,chains,land,centrality,multiple):
+def rewrite_PDB(prefix,chain,membership,chains,land,centrality,multiple):
     ''' 
     re-write the PDB with the cluster and centrality. Multiple is if more than 50 pdbs are used
     and no MStA PDB is availlable
@@ -237,18 +237,17 @@ def mapModules(st,membership,D):
 def rewritePDBifFDM(prefix,chain, multiple,fdm,membership):
     D = FDMDictByRes(prefix, chain)
     if not multiple:
-        print 'not coded yet'
-        sys.exit(-1)
+        st = PDBnet.PDBstructure(prefix+'.pdb')
     else:
         st = PDBnet.PDBstructure(chain+'.pdb')
-        for ch in st.chains:
-            for res in st.chains[ch]:
-                if str(res) in D.keys():
-                    for a in st.chains[ch][res].atoms:
-                        st.chains[ch][res].atoms[a].tempFactor=float(fdm[D[str(res)]])
-                else:
-                    for a in st.chains[ch][res].atoms:
-                        st.chains[ch][res].atoms[a].tempFactor=-1.0
+    for ch in st.chains:
+        for res in st.chains[ch]:
+            if str(res) in D.keys():
+                for a in st.chains[ch][res].atoms:
+                    st.chains[ch][res].atoms[a].tempFactor=float(fdm[D[str(res)]])
+            else:
+                for a in st.chains[ch][res].atoms:
+                    st.chains[ch][res].atoms[a].tempFactor=-1.0
         mapModules(st,membership,D)
         st.orderofchains = st.chainsOrder.keys()
         organizeChains(st)
@@ -273,7 +272,15 @@ def tFDM2land(prefix):
             for e in bl:
                 bta.append(e.strip().split('t')[-1])
     return fdm, bta
-            
+
+def main(prefix, chain, multiple=False,fdm=False,tfd=False,tFD=False,centrality=False):
+    ''' execute all functions to map modules '''
+    membership = map_consistency(prefix)
+    if tfd or tFD:
+        fdm, bta = tFDM2land(prefix)
+        rewritePDBifFDM(prefix,chain, multiple,fdm,membership)
+    land,chains = parse_centralities(prefix,centrality)
+    rewrite_PDB(prefix,chain,membership,chains,land,centrality,multiple)
 # End of definitions############################################################################
 
 # Aplication of the code #######################################################################
@@ -328,11 +335,5 @@ if __name__ == "__main__":
             tfd = True
         elif arg == '-FD':
             tFD = True
-    membership = map_consistency(prefix)
-    if tfd or tFD:
-        fdm, bta = tFDM2land(prefix)
-        rewritePDBifFDM(prefix,chain, multiple,fdm,membership)
-    #if centrality:
-    land,chains = parse_centralities(prefix,centrality)
-    rewrite_PDB(chain,membership,chains,land,centrality,multiple)
 
+    main(prefix, chain, multiple,fdm,tfd,tFD,centrality)
