@@ -10,6 +10,16 @@ classifyGM.py:
   are treated as the training set. Use -h to see options.
   A gmfile is a semicolon-delimited text file, where the first element is the name of the structure/shape.
 
+RFclassGM.R:
+------------
+  Given a gmfile (each one containing elements belonging to the same group and therefore with 
+  an assigned label) and a membership vector file (space delimited labels in a single line, of the same lenght of entries in  
+  the GM file). Run it once for options:
+  -LDfs XX: Where XX can be RF (random forest) or KW (kruskall-wallis). Feature selection with RF or KW followed by an linear 
+    discriminant pre-classification to curate the training set based on a 95% confidence ellipses.
+  -MDS : A non-metric MDS transformation of the data.
+  -FS XX: XX can be also RF or KW and will perform feature selection without a posterior LD curation
+  A gmfile is a semicolon-delimited text file, where the first element is the name of the structure/shape.
 
 Equi2Latex.py:
 -------------
