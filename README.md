@@ -246,9 +246,9 @@ comparecommunities.py:
   Requirements:
   
   1) Python:
-    a) igraph
-    b) Scipy
-    c) Matplotlib
+      a) igraph
+      b) Scipy
+      c) Matplotlib
   
   THIS STILL IN BETA!!!
   
@@ -260,8 +260,8 @@ comparecommunities.py:
   Requirements:
   
   1) Python:
-    a) igraph
-    b) numpy
-    c) pickle
+      a) igraph
+      b) numpy
+      c) pickle
 
 
