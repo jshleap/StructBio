@@ -170,6 +170,7 @@ ldaellipse4mod.R:
 
 MapModules.py:
 -------------
+  THIS IS MAINLY DEPRECATED AND NOT MAINTAINED SINCE IT WAS INCORPORATED INTO MODULER!!!
   Map clustering partition into the chain field of a PDB structure, the centrality or form difference into beta and 
   ocupancy. This also works for a multiple pdb(>50) with the -m option. it requires [prefix].landmark, [prefix].gm, and   [prefix].graphcluster files. If used without the -m option it also needs a [prefix].pdb file.
   
@@ -236,5 +237,31 @@ Moduler.py:
   6) rpy2, available at http://rpy.sourceforge.net/rpy2.html
   
   7) Scipy
+
+comparecommunities.py:
+----------
+  Given two membership vectors of communities (i.e. Moduler.py output) compute the comparison of the two using      
+  estandardized mutual information and a null distribution permuting the communities:
+
+  Requirements:
+  
+  1) Python:
+    a) igraph
+    b) Scipy
+    c) Matplotlib
+  
+  THIS STILL IN BETA!!!
+  
+comparecommunities.py:
+----------
+  Searching for optimal 1D partition for 3D correlation modularity. Essentially looking for AFUs-like modules within 
+  proteins, although can be used for general purposes when a correlation graph wants to be further constrained by 
+  sequentiality.
+  Requirements:
+  
+  1) Python:
+    a) igraph
+    b) numpy
+    c) pickle
 
 
