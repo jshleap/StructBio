@@ -253,7 +253,7 @@ comparecommunities.py:
   
   THIS STILL IN BETA!!!
   
-comparecommunities.py:
+constrainedModularity.py:
 ----------
   Searching for optimal 1D partition for 3D correlation modularity. Essentially looking for AFUs-like modules within 
   proteins, although can be used for general purposes when a correlation graph wants to be further constrained by 
