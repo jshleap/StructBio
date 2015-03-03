@@ -246,6 +246,7 @@ comparecommunities.py:
   Requirements:
   
   1) Python:
+  
       a) igraph
       b) Scipy
       c) Matplotlib
@@ -260,6 +261,7 @@ comparecommunities.py:
   Requirements:
   
   1) Python:
+  
       a) igraph
       b) numpy
       c) pickle
