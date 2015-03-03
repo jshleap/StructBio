@@ -92,6 +92,14 @@ r('library(FactoMineR)')
 # End importing#################################################################################
 
 #Some definitions###############################################################################
+def isFloat(string):
+    try:
+        float(string)
+        isfloat=True
+    except:
+        isfloat=False
+    
+    return isfloat
 def Read_GM(prefix, dim, dist=False, f='gm'):
     '''
     Load data from a gm (coordinates file) file
@@ -122,7 +130,10 @@ def Read_GM(prefix, dim, dist=False, f='gm'):
                 if line.strip()[-1] == ';':
                     line = line.strip().split(';')[:-1]
                 else:
-                    line = line.strip().split(';')			
+                    line = line.strip().split(';')
+            # check if there is a titleline
+            if all([not isFloat(x) for x in line]):
+                continue
             # Dispatch values in the right dimension list using i%dim to index
             for i in range(len(line)):
                 temps[i%dim].append(float(line[i]))
@@ -1952,9 +1963,11 @@ def main(prefix, options):
     # Build igraph ###################################################################
     if not os.path.isfile(prefix + '.igraph.pickl'):
         g = Build_igraph(lms, options, gfilter)
-        o = open(prefix + '.igraph.pickl','w')
-        pickle.dump(g,o)
-        o.close()
+        #o = open(prefix + '.igraph.pickl','w')
+        #pickle.dump(g,o)
+        g.write_pickle(fname=prefix + '.igraph.pickl')
+        g.write(prefix+'.edges')
+        #o.close()
     else: g = pickle.load(open(prefix + '.igraph.pickl'))
     
     if options.contacts:

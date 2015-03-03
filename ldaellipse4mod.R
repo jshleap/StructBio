@@ -151,7 +151,7 @@ for(g in levels(predX$cls)){
     LX[[g]]<-v
     ellX <- rbind(ellX,  v)
   }}
-Xplot <- ggplot(predX, aes(x=LD1, y=LD2, col=cls) ) + geom_point( size = 4, aes(color = cls))+theme_bw()+
+Xplot <- ggplot(predX, aes(x=LD1, y=LD2, col=cls, label=seq(nrow(predX))) ) + geom_point( size = 4, aes(color = cls))+theme_bw()+
   geom_path(data=ellX, aes(x=x,y=y,color=Module),size=1,linetype=2) + ggtitle(paste('LDA of the correlation vector maginitude matrix of dataset',substr(fn,1,nchar(fn)-3)))
 
 #get overlaps
@@ -169,4 +169,8 @@ for(m1 in LX){
 lapply(merges,write,'merges.txt',append=T)
 png(file=paste('LDA',substr(fn,1,nchar(fn)-3),'.png',sep=''))
 Xplot
+dev.off()
+
+png(file=paste('LDA',substr(fn,1,nchar(fn)-3),'_numbered.png',sep=''))
+Xplot + geom_text()
 dev.off()

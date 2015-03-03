@@ -21,7 +21,7 @@ Requires:
 
 #importing bit####################################################################################################
 import sys,os
-from utils import PDBnet
+from labblouin import PDBnet
 from shutil import move
 from copy import deepcopy
 # End importing###################################################################################################
@@ -91,25 +91,30 @@ def map_consistency(prefix):
 
     # renumber clusters
     temp = list(set(membership))
-    tempd={}
-    if '?' in temp:
-        temp.remove('?')
-    for t in range(len(temp)):
-        tempd[temp[t]]= chainn[t]
-    for i in range(len(membership)):
-        if not membership[i] == '?':
-            membership[i] = tempd[membership[i]]
+    if len(temp) < len(chainn):
+        tempd={}
+        if '?' in temp:
+            temp.remove('?')
+        for t in range(len(temp)):
+            tempd[temp[t]]= chainn[t]
+        for i in range(len(membership)):
+            if not membership[i] == '?':
+                membership[i] = tempd[membership[i]]
+    else:
+        for i in range(len(membership)):
+            if not membership[i] == '?':
+                membership[i] = i
     # write a new graphcluster that is consistent with the mapping
     outf=open(prefix+'.mapped.graphcluster','w')
     for e in membership:
-        outf.write(e + ' ')
+        outf.write(str(e) + ' ')
     outf.close()
-    return membership
+    return [str(x) for x in membership]
 
 def rewrite_PDB(prefix,chain,membership,chains,land,centrality,multiple):
     ''' 
     re-write the PDB with the cluster and centrality. Multiple is if more than 50 pdbs are used
-    and no MStA PDB is availlable
+    and no MStA PDB is available
     '''
     fout = open(prefix + '.map%s.pdb'%(chain),'w')    
     
@@ -141,8 +146,8 @@ def rewrite_PDB(prefix,chain,membership,chains,land,centrality,multiple):
                 fout.write(line)
         fin.close()
     else:
-        fin = open(chain + ".pdb")
-        st = PDBnet.PDBstructure(chain + ".pdb")
+        fin = open(os.path.join(multiple,chain + ".pdb"))
+        st = PDBnet.PDBstructure(os.path.join(multiple,chain + ".pdb"))
         chainmap = chains[chain]
         for line in fin:
             if not line.startswith('ATOM'):
@@ -205,41 +210,31 @@ def FDMDictByRes(prefix, chain):
 
 def dummychain(st):
     DUMMY = deepcopy(st.chains)
-    DUMMYO= deepcopy(st.chainsOrder)
-    st.chains['dummy']={}
-    st.chainsOrder['dummy']=[]
+    st.NewChain('dummy')
     for ch in DUMMY:
         st.chains['dummy'].update(st.chains[ch])
-        del st.chains[ch]
-    for cha in DUMMYO:
-        st.chainsOrder['dummy'].extend(st.chainsOrder[cha])
-        del st.chainsOrder[cha]    
+        del st.chains[ch] 
     
 def mapModules(st,membership,D):
     dummychain(st)
     sm = set(membership)
     sm.add('X')
-    for m in sm:
-        st.chains[m]={}
-        st.chainsOrder[m]=[]
+    for m in sm: st.NewChain(m)
     for k,v in D.iteritems():
         st.AddResidueToChain(membership[D[k]], st.chains['dummy'].pop(str(k)))
     DUMMY = deepcopy(st.chains)
     for re in DUMMY['dummy']:
         st.AddResidueToChain('X', st.chains['dummy'].pop(re))
-    if not st.chains['dummy']:
-        del st.chainsOrder['dummy']
-        del st.chains['dummy']
+    if not st.chains['dummy']: del st.chains['dummy']
     else:
         print 'Variable dummy not completely remove!!! check output!'
-
     
 def rewritePDBifFDM(prefix,chain, multiple,fdm,membership):
     D = FDMDictByRes(prefix, chain)
     if not multiple:
         st = PDBnet.PDBstructure(prefix+'.pdb')
     else:
-        st = PDBnet.PDBstructure(chain+'.pdb')
+        st = PDBnet.PDBstructure(os.path.join(multiple,chain+'.pdb'))
     for ch in st.chains:
         for res in st.chains[ch]:
             if str(res) in D.keys():
@@ -249,14 +244,13 @@ def rewritePDBifFDM(prefix,chain, multiple,fdm,membership):
                 for a in st.chains[ch][res].atoms:
                     st.chains[ch][res].atoms[a].tempFactor=-1.0
         mapModules(st,membership,D)
-        st.orderofchains = st.chainsOrder.keys()
+        st.orderofchains = st.chains.keys()
         organizeChains(st)
     st.WriteFile(prefix + '.map%s.FD.pdb'%(chain))
 
 def organizeChains(st):
     lt=[]
-    for ch in st.chains:
-        st.chainsOrder[ch] = sorted(st.chainsOrder[ch], key=lambda x: int(x))
+    for ch in st.chains: ch.SortByNumericalIndices()
     
 def tFDM2land(prefix):
     if not os.path.isfile(prefix+'.tradFDM') and os.path.isfile(prefix+'.gm') and tfd:
@@ -308,6 +302,7 @@ if __name__ == "__main__":
     multiple=False
     tfd = False
     tFD = False
+    fdm=False
     # Command line input ###################################################
     for arg in sys.argv[1:]:
         if arg.startswith('-centrality='):
