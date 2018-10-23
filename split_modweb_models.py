@@ -19,8 +19,13 @@ for pdbfile in files:
     with open(os.path.join(sys.argv[2],'%s.pdb' % name), 'w') as f:
         f.write(content)
 
+try:
+    cpus = int(sys.argv[3])
+except:
+    cpus = 1
+
 outfn = sys.argv[1][:sys.argv[1].find('.pdb')]
-matt = Popen('Matt -o %s_aln %s/*.pdb' % (outfn, sys.argv[2]),
+matt = Popen('Matt -t %d -o %s_aln %s/*.pdb' % (outfn, cpus, sys.argv[2]),
              shell=True)
 
 
