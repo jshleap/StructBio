@@ -25,7 +25,7 @@ except:
     cpus = 1
 
 outfn = sys.argv[1][:sys.argv[1].find('.pdb')]
-matt = Popen('Matt -t %d -o %s_aln %s/*.pdb' % (outfn, cpus, sys.argv[2]),
+matt = Popen('Matt -t %d -o %s_aln %s/*.pdb' % (cpus, outfn, sys.argv[2]),
              shell=True)
 
 
